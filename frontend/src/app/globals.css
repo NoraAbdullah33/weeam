@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/* ================================================================== */
+/*  واءم | WAAEM — Enterprise Alignment Intelligence · dark design      */
+/* ================================================================== */
+@theme {
+  --color-bg: #081c15;
+  --color-bg-2: #04100b;
+  --color-ink: #f8fafc;
+  --color-green: #00c27a;
+  --color-green-2: #13e09b;
+  --color-gold: #f0c75e;
+  --color-red: #ff6b5a;
+  --color-panel: rgba(255, 255, 255, 0.04);
+  --color-panel-border: rgba(255, 255, 255, 0.09);
+
+  --font-sans: var(--font-arabic), var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html, body {
+    background: #F2F6F4;
+    color: #10231C;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: rgba(0, 158, 106, 0.2); }
+  a { color: #009E6A; text-decoration: none; }
+  a:hover { color: #0B3D2E; }
+  :focus-visible { outline: 2px solid #009E6A; outline-offset: 2px; border-radius: 6px; }
+}
+
+/* ===== WAAEM design keyframes (imported design) ===== */
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blurIn{from{opacity:0;filter:blur(14px);transform:scale(.97)}to{opacity:1;filter:blur(0);transform:scale(1)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes breatheGlow{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.85;transform:scale(1.14)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulseRing{0%{transform:scale(.86);opacity:.6}100%{transform:scale(1.6);opacity:0}}
+@keyframes orbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes softGlow{0%,100%{opacity:.4}50%{opacity:.75}}
+@keyframes ripple{to{transform:scale(2.6);opacity:0}}
+@keyframes dotPulse{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes checkPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 194, 122, 0.22); border-radius: 20px; border: 3px solid #081c15; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 194, 122, 0.4); }
+
+/* ---- keyframes (ported from the design) ---- */
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+@keyframes breatheGlow { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:.9;transform:scale(1.12)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes spinRev { to{transform:rotate(-360deg)} }
+@keyframes pulseRing { 0%{transform:scale(.85);opacity:.7} 100%{transform:scale(1.7);opacity:0} }
+@keyframes twinkle { 0%,100%{opacity:.15} 50%{opacity:.9} }
+@keyframes meshA { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(5%,-4%) scale(1.18)} }
+@keyframes meshB { 0%,100%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(-6%,5%) scale(1)} }
+@keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(26px)} to{opacity:1;transform:translateY(0)} }
+@keyframes blurIn { from{opacity:0;filter:blur(16px);transform:scale(.96)} to{opacity:1;filter:blur(0);transform:scale(1)} }
+@keyframes dotFlow { to{stroke-dashoffset:-60} }
+@keyframes ripple { to{transform:scale(2.6);opacity:0} }
+@keyframes flash { 0%{opacity:0} 30%{opacity:.9} 100%{opacity:0} }
+@keyframes materialize { from{opacity:0;transform:translateY(30px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes docAbsorb { 0%{opacity:0;transform:translate(0,0) scale(1)} 18%{opacity:1} 100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(.15);filter:blur(4px)} }
+@keyframes glowPulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.35)} }
+@keyframes shimmerText { to{background-position:200% center} }
+@keyframes orbFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+
+.anim-fadeUp { animation: fadeUp .8s cubic-bezier(.22,1,.36,1) both; }
+.anim-materialize { animation: materialize .6s ease both; }
+
+/* Shimmer gradient wordmark */
+.wordmark {
+  background: linear-gradient(100deg,#F8FAFC,#13E09B,#F0C75E,#F8FAFC);
+  background-size: 200% auto;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmerText 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fadeUp, .anim-materialize { animation: none; }
+  [class*="animation"] { animation: none !important; }
+}
