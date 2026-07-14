@@ -147,8 +147,7 @@ export default function WaaemPage() {
       stepTimer = setInterval(() => setStep((s) => Math.min(AUTH_ORDER.length, s + 1)), 700);
 
       const an = await api.analyze(ids);
-      const res = await api.result(an.analysis_id);
-      const rep = res.result;
+      const rep = an.result;
 
       const minMs = AUTH_ORDER.length * 700 + 500;
       const elapsed = Date.now() - started;

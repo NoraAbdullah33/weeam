@@ -1,13 +1,13 @@
 import type { NextConfig } from "next";
 
-// `/api/*` is proxied to the FastAPI backend at runtime by the Route Handler in
-// `src/app/api/[...path]/route.ts` (it reads BACKEND_URL per request). A
-// build-time `rewrites()` entry is deliberately NOT used: its destination is
-// frozen at build and, when BACKEND_URL is unset, silently points at
-// 127.0.0.1:8000 — which the host drops, making `/api/*` return an opaque 404.
+// Fully self-contained app: document extraction and the governance-compliance
+// analysis run inside this Next.js app's own /api routes (Node runtime). No
+// external backend is required. `mammoth` / `unpdf` are kept as external server
+// packages so their internals aren't bundled by the compiler.
 const nextConfig: NextConfig = {
-  // Self-contained server output for Docker/Render images.
+  // Self-contained server output for Docker images (ignored by Vercel).
   output: "standalone",
+  serverExternalPackages: ["mammoth", "unpdf"],
 };
 
 export default nextConfig;

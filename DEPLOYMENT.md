@@ -1,32 +1,28 @@
 # WAAEM — Deployment Guide
 
-**Recommended: Vercel (frontend) + a hosted backend.** Vercel runs the Next.js
-frontend; the FastAPI backend (PostgreSQL, ChromaDB, OCR, ingestion) runs on a
-container host and the frontend proxies `/api/*` to it. A single-host
-**Docker Compose** path is also included.
+**Recommended: Vercel — the frontend is fully self-contained.** Document
+extraction (PDF/DOCX) and the Saudi governance-compliance analysis run inside
+the Next.js app's own `/api` routes (Node runtime), so **no separate backend is
+required** to upload a document and get an Arabic compliance report. Just deploy
+`frontend/` to Vercel and it works.
 
-> **Why the backend isn't on Vercel:** it needs a long-running process, a
-> persistent disk for ChromaDB, and system binaries (Tesseract OCR) — none of
-> which fit Vercel's serverless model. Host it on Render/Fly/Railway or any
-> Docker host, then point the frontend at it.
+> **Optional heavy engine.** The repo also ships a Python **FastAPI** backend
+> (PostgreSQL, ChromaDB, OCR, live-regulation retrieval + LLM) for the fullest
+> analysis. It's optional — see §B/§C. The built-in engine covers the core
+> upload → analyze → report flow without it.
 
 ---
 
-## A) Frontend → Vercel  (recommended)
+## A) Frontend → Vercel  (recommended, zero-config)
 
 1. Import the repo at [vercel.com/new](https://vercel.com/new).
 2. Set **Root Directory** to `frontend` (Framework preset: Next.js — auto).
-3. Add an environment variable **`BACKEND_URL`** = your backend's public URL
-   (e.g. `https://waaem-backend.onrender.com`). The frontend proxies `/api/*`
-   to it. **Redeploy after setting it** so the new value takes effect.
-4. Deploy. Your app is live at the Vercel URL.
+3. Deploy. Your app is live at the Vercel URL — **no environment variables
+   needed.**
 
-The browser only ever calls the frontend's own `/api/*`, which the frontend
-proxies to the backend server-side (via the Route Handler in
-`frontend/src/app/api/[...path]/route.ts`, which reads `BACKEND_URL` at
-runtime) — so there are **no CORS issues** and the API base never changes.
-If `BACKEND_URL` is missing, `/api/*` returns a clear "backend not configured"
-message instead of an opaque 404.
+The browser only ever calls the app's own `/api/*` routes, which run on Vercel's
+Node functions — so there are **no CORS issues** and nothing external to
+configure. Uploads are capped at ~4 MB (Vercel's serverless request-body limit).
 
 ---
 
@@ -82,7 +78,7 @@ Stop: `docker compose down` (add `-v` to wipe volumes).
 | `MAX_UPLOAD_MB` | `25` | per-file limit |
 | `ALLOWED_EXTENSIONS` | `pdf,docx` | accepted types |
 | `CORS_ORIGINS` | `*` | comma-separated in prod |
-| `BACKEND_URL` (frontend) | `http://backend:8000` (compose) / *(required in prod)* | proxy target, read at runtime; unset → `/api/*` returns a clear 503, not a 404 |
+| `BACKEND_URL` (frontend) | *(unused for the self-contained app)* | only for the optional Docker-Compose path that fronts the Python backend |
 
 ## Post-deploy smoke test
 ```bash

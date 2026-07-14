@@ -1,6 +1,7 @@
-import type { ComplianceReport, KBStatus } from "./types";
+import type { ComplianceReport } from "./types";
 
-// Same-origin: Next.js rewrites /api/* to the FastAPI backend (see next.config.ts).
+// Fully self-contained: the API routes under /api/* run inside this Next.js app
+// (see src/app/api/*), so there is no external backend to configure.
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -17,6 +18,13 @@ export interface UploadResult {
   documents: { id: string; filename: string; ext: string; pages: number; size_kb: number }[];
 }
 
+export interface AnalyzeResult {
+  analysis_id: string;
+  status: string;
+  source: string;
+  result: ComplianceReport;
+}
+
 export const api = {
   upload: (files: File[]) => {
     const fd = new FormData();
@@ -24,15 +32,9 @@ export const api = {
     return jsonFetch<UploadResult>("/api/upload", { method: "POST", body: fd });
   },
   analyze: (documentIds: string[]) =>
-    jsonFetch<{ analysis_id: string; status: string; source: string }>("/api/analyze", {
+    jsonFetch<AnalyzeResult>("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ document_ids: documentIds }),
     }),
-  result: (analysisId: string) =>
-    jsonFetch<{ analysis_id: string; status: string; source: string; result: ComplianceReport }>(
-      `/api/result/${analysisId}`
-    ),
-  kbStatus: () => jsonFetch<KBStatus>("/api/kb/status"),
-  aiStatus: () => jsonFetch<{ online: boolean; model: string; kb_chunks: number }>("/api/ai/status"),
 };
