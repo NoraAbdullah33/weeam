@@ -28,7 +28,13 @@ services:
         sync: false          # set to your hosted Ollama/llama endpoint (optional)
       - key: LLAMA_MODEL
         value: llama3.1
-      - key: AI_ALLOW_FALLBACK
-        value: "true"
+      # Hosted Llama via Groq — REQUIRED for real compliance judgment.
+      # Without it the backend has no model and analysis returns an error
+      # (there is no similarity-based fallback score). Set the secret VALUE in
+      # the Render dashboard (Environment tab); it is never committed here.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: CORS_ORIGINS
         value: "*"          # tighten to your Vercel domain in production
