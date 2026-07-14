@@ -362,44 +362,54 @@ async def analyze(uploaded_text: str) -> ComplianceReport:
     if not requirements:
         raise AnalysisError("تعذّر استرجاع متطلبات نظامية مطابقة للوثيقة.")
 
-    # Llama primary when available; always fall back to the grounded retrieval
-    # report so the analysis never fails outright.
-    if await llama_client.health():
-        if settings.use_groq:
-            # Hosted Groq is fast → judge ALL retrieved controls, no time budget,
-            # fall back only on a real API error.
-            llama_reqs = requirements
-        else:
-            # Local CPU: keep a small, balanced set (round-robin one control per
-            # authority) so Llama's Arabic analysis finishes inside the time budget.
-            by_auth: dict[str, list] = {}
-            for r in requirements:  # already ranked by score desc
-                by_auth.setdefault(r["meta"].get("authority", "?"), []).append(r)
-            lists = list(by_auth.values())
-            llama_reqs = []
-            rnd = 0
-            while len(llama_reqs) < LLAMA_MAX_CONTROLS and any(len(x) > rnd for x in lists):
-                for x in lists:
-                    if len(x) > rnd and len(llama_reqs) < LLAMA_MAX_CONTROLS:
-                        llama_reqs.append(x[rnd])
-                rnd += 1
-        for attempt in range(settings.llama_max_retries + 1):
-            try:
-                logger.info("Llama compliance attempt %d (%d requirements · %s)…",
-                            attempt + 1, len(llama_reqs), "groq" if settings.use_groq else "ollama")
-                if settings.use_groq:
-                    # No fixed timeout — Groq responds in well under a second per call.
-                    return await build_llama_report(uploaded_text, llama_reqs)
-                return await asyncio.wait_for(build_llama_report(uploaded_text, llama_reqs), timeout=LLAMA_BUDGET_SECONDS)
-            except asyncio.TimeoutError:
-                logger.warning("Llama compliance timed out (>%ds) — using retrieval-grounded report", LLAMA_BUDGET_SECONDS)
-                break
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Llama compliance attempt %d failed: %s: %s", attempt + 1, type(e).__name__, e)
-        logger.warning("Falling back to retrieval-grounded scorer")
+    # The compliance verdict comes SOLELY from Llama's real judgment. There is no
+    # similarity-based fallback: a topic-overlap scorer credits a document that
+    # merely mentions a subject as "partially compliant", so a genuinely
+    # non-compliant document must be judged Non-Compliant (→ 0%) by the model.
+    # If Llama cannot produce a valid judgment we raise, so the user sees an
+    # honest "try again" error instead of a fabricated score.
+    if not await llama_client.health():
+        raise AnalysisError(
+            "خدمة التحليل بالذكاء الاصطناعي (Llama) غير متاحة حالياً. يرجى المحاولة بعد قليل."
+        )
 
-    try:
-        return build_retrieval_report(requirements)
-    except Exception as e:  # noqa: BLE001
-        logger.exception("retrieval report failed: %s", e)
-        raise AnalysisError("تعذّر إنشاء تقرير الامتثال.")
+    if settings.use_groq:
+        # Hosted Groq is fast → judge ALL retrieved controls (429s are retried
+        # with backoff inside the Groq client).
+        llama_reqs = requirements
+    else:
+        # Local CPU: keep a small, balanced set (round-robin one control per
+        # authority) so Llama's Arabic analysis finishes inside the time budget.
+        by_auth: dict[str, list] = {}
+        for r in requirements:  # already ranked by score desc
+            by_auth.setdefault(r["meta"].get("authority", "?"), []).append(r)
+        lists = list(by_auth.values())
+        llama_reqs = []
+        rnd = 0
+        while len(llama_reqs) < LLAMA_MAX_CONTROLS and any(len(x) > rnd for x in lists):
+            for x in lists:
+                if len(x) > rnd and len(llama_reqs) < LLAMA_MAX_CONTROLS:
+                    llama_reqs.append(x[rnd])
+            rnd += 1
+
+    last_err: Exception | None = None
+    for attempt in range(settings.llama_max_retries + 1):
+        try:
+            logger.info("Llama compliance attempt %d (%d requirements · %s)…",
+                        attempt + 1, len(llama_reqs), "groq" if settings.use_groq else "ollama")
+            if settings.use_groq:
+                # No fixed timeout — Groq responds in well under a second per call.
+                return await build_llama_report(uploaded_text, llama_reqs)
+            return await asyncio.wait_for(build_llama_report(uploaded_text, llama_reqs), timeout=LLAMA_BUDGET_SECONDS)
+        except asyncio.TimeoutError as e:
+            last_err = e
+            logger.warning("Llama compliance timed out (>%ds) on attempt %d", LLAMA_BUDGET_SECONDS, attempt + 1)
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            logger.warning("Llama compliance attempt %d failed: %s: %s", attempt + 1, type(e).__name__, e)
+
+    logger.error("Llama compliance failed after %d attempts: %s",
+                 settings.llama_max_retries + 1, last_err)
+    raise AnalysisError(
+        "تعذّر إكمال تحليل الامتثال بالذكاء الاصطناعي (Llama) حالياً. يرجى إعادة المحاولة بعد قليل."
+    )

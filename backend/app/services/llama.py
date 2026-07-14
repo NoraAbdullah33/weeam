@@ -7,6 +7,7 @@ layer can fall back to the curated analysis.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
@@ -52,9 +53,31 @@ class LlamaClient:
         except Exception:  # noqa: BLE001
             return False
 
+    @staticmethod
+    def _retry_wait(r: httpx.Response, detail: str, attempt: int) -> float:
+        """Seconds to wait before retrying a 429: prefer the server's Retry-After
+        header, then Groq's 'try again in Xs' message, else exponential backoff
+        (all capped at 60s — the free-tier TPM window resets each minute)."""
+        ra = r.headers.get("retry-after")
+        if ra:
+            try:
+                return min(60.0, float(ra))
+            except ValueError:
+                pass
+        m = re.search(r"try again in ([\d.]+)s", detail)
+        if m:
+            try:
+                return min(60.0, float(m.group(1)) + 0.5)
+            except ValueError:
+                pass
+        return min(60.0, 3.0 * (2 ** attempt))
+
     async def _groq_generate(self, prompt: str) -> str:
         """Hosted Llama via Groq's OpenAI-compatible chat completions endpoint.
-        Raises on any API error so the caller can fall back to the retrieval engine."""
+        Transient 429 rate-limits are retried with backoff so the real Llama
+        judgment is produced whenever possible. Any other API error — or a 429
+        that survives every retry — raises AnalysisError; the caller surfaces an
+        honest error rather than a fabricated similarity score."""
         url = f"{settings.groq_base_url.rstrip('/')}/chat/completions"
         headers = {"Authorization": f"Bearer {settings.groq_api_key}", "Content-Type": "application/json"}
         body = {
@@ -64,17 +87,25 @@ class LlamaClient:
             "max_tokens": 2200,
             "response_format": {"type": "json_object"},
         }
-        async with httpx.AsyncClient(timeout=settings.groq_timeout) as c:
-            r = await c.post(url, headers=headers, json=body)
-            if r.status_code != 200:
-                # surface Groq's error body so bad key / rate limit / bad request is visible
-                detail = r.text[:300]
-                logger.error("Groq API error %s: %s", r.status_code, detail)
-                raise AnalysisError(f"Groq API {r.status_code}: {detail}")
-            data = r.json()
-            content = data["choices"][0]["message"]["content"]
-            logger.info("Groq analysis ok · model=%s · usage=%s", settings.groq_model, data.get("usage"))
-            return content
+        last_detail = ""
+        for attempt in range(settings.groq_max_retries + 1):
+            async with httpx.AsyncClient(timeout=settings.groq_timeout) as c:
+                r = await c.post(url, headers=headers, json=body)
+            if r.status_code == 200:
+                data = r.json()
+                content = data["choices"][0]["message"]["content"]
+                logger.info("Groq analysis ok · model=%s · usage=%s", settings.groq_model, data.get("usage"))
+                return content
+            last_detail = r.text[:300]
+            if r.status_code == 429 and attempt < settings.groq_max_retries:
+                wait = self._retry_wait(r, last_detail, attempt)
+                logger.warning("Groq 429 rate-limit (attempt %d/%d) — retrying in %.1fs",
+                               attempt + 1, settings.groq_max_retries + 1, wait)
+                await asyncio.sleep(wait)
+                continue
+            logger.error("Groq API error %s: %s", r.status_code, last_detail)
+            raise AnalysisError(f"Groq API {r.status_code}: {last_detail}")
+        raise AnalysisError(f"Groq rate-limited after {settings.groq_max_retries + 1} attempts: {last_detail}")
 
     async def _ollama_generate(self, prompt: str) -> str:
         payload = {

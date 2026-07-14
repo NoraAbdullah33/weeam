@@ -64,12 +64,14 @@ class Settings(BaseSettings):
 
     # --- Groq (hosted Llama, OpenAI-compatible) ---
     # When GROQ_API_KEY is set the compliance engine uses Groq's LPU-hosted Llama
-    # instead of local CPU inference (sub-second responses, no timeouts). Falls back
-    # to the retrieval engine only on an actual Groq API error.
+    # instead of local CPU inference (sub-second responses, no timeouts). The
+    # compliance verdict comes solely from Llama — there is no similarity-based
+    # fallback score. Transient 429 rate-limits are retried with backoff.
     groq_api_key: str = Field(default="")
     groq_base_url: str = Field(default="https://api.groq.com/openai/v1")
     groq_model: str = Field(default="llama-3.3-70b-versatile")
     groq_timeout: int = Field(default=60)
+    groq_max_retries: int = Field(default=5)  # backoff attempts on 429 rate-limit
 
     @property
     def use_groq(self) -> bool:

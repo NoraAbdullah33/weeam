@@ -12,8 +12,8 @@ const geist = Geist({ variable: "--font-geist", subsets: ["latin"], weight: ["40
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
-  title: "واءم | WAAEM — ذكاء المواءمة المؤسسية",
-  description: "واءم — منصة ذكاء المواءمة المؤسسية: افهم مؤسستك قبل أن تبدأ بتحسينها.",
+  title: "واءم | WAAEM — منصة الامتثال للأنظمة السعودية",
+  description: "واءم — قيّم أي وثيقة حوكمة مقابل الأنظمة السعودية الرسمية عبر الذكاء الاصطناعي (RAG وLlama)، واحصل على تقرير امتثال عربي يبيّن الفجوات والتوصيات.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
