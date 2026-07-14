@@ -1,13 +1,16 @@
-// POST /api/analyze — decode the document tokens, run the built-in Saudi
+// POST /api/analyze — decode the document tokens, run the RAG + Llama Saudi
 // governance compliance engine, and return the full report in one call.
 // Stateless: the report is returned directly (no separate /api/result round-trip).
 import { type NextRequest, NextResponse } from "next/server";
 
 import { analyzeText } from "@/lib/analysis";
+import { LlmError, LlmNotConfiguredError } from "@/lib/llm";
 import { decodeDoc } from "@/lib/token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Groq-Llama judgment is a single fast call, but allow headroom on Vercel.
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   let body: { document_ids?: unknown };
@@ -47,7 +50,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = analyzeText(combined, names);
+  // The compliance verdict is produced solely by Llama (RAG-grounded). There is
+  // no keyword/similarity fallback: if the model can't judge, we return an
+  // honest error instead of a fabricated score.
+  let result;
+  try {
+    result = await analyzeText(combined, names);
+  } catch (e) {
+    if (e instanceof LlmNotConfiguredError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "خدمة التحليل بالذكاء الاصطناعي غير مُهيأة: لم يتم ضبط مفتاح Groq (GROQ_API_KEY) في إعدادات النشر.",
+        },
+        { status: 503 },
+      );
+    }
+    const detail = e instanceof LlmError ? e.message : e instanceof Error ? e.message : "";
+    console.error("analyze failed:", detail);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "تعذّر إكمال التحليل بالذكاء الاصطناعي (Llama) حالياً. يرجى إعادة المحاولة بعد قليل.",
+      },
+      { status: 503 },
+    );
+  }
+
   // A short, human-readable analysis id (the report travels with the response).
   const analysis_id = `wa-${result.overall_compliance}-${combined.length.toString(36)}`;
 
