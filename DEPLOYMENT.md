@@ -17,12 +17,16 @@ container host and the frontend proxies `/api/*` to it. A single-host
 1. Import the repo at [vercel.com/new](https://vercel.com/new).
 2. Set **Root Directory** to `frontend` (Framework preset: Next.js — auto).
 3. Add an environment variable **`BACKEND_URL`** = your backend's public URL
-   (e.g. `https://waaem-backend.onrender.com`). Next.js rewrites `/api/*` to it.
+   (e.g. `https://waaem-backend.onrender.com`). The frontend proxies `/api/*`
+   to it. **Redeploy after setting it** so the new value takes effect.
 4. Deploy. Your app is live at the Vercel URL.
 
-The browser only ever calls the frontend's own `/api/*`, which Vercel rewrites
-to the backend server-side — so there are **no CORS issues** and the API base
-never changes. See **[frontend/vercel.json](frontend/vercel.json)**.
+The browser only ever calls the frontend's own `/api/*`, which the frontend
+proxies to the backend server-side (via the Route Handler in
+`frontend/src/app/api/[...path]/route.ts`, which reads `BACKEND_URL` at
+runtime) — so there are **no CORS issues** and the API base never changes.
+If `BACKEND_URL` is missing, `/api/*` returns a clear "backend not configured"
+message instead of an opaque 404.
 
 ---
 
@@ -78,7 +82,7 @@ Stop: `docker compose down` (add `-v` to wipe volumes).
 | `MAX_UPLOAD_MB` | `25` | per-file limit |
 | `ALLOWED_EXTENSIONS` | `pdf,docx` | accepted types |
 | `CORS_ORIGINS` | `*` | comma-separated in prod |
-| `BACKEND_URL` (frontend) | `http://127.0.0.1:8000` | proxy target |
+| `BACKEND_URL` (frontend) | `http://backend:8000` (compose) / *(required in prod)* | proxy target, read at runtime; unset → `/api/*` returns a clear 503, not a 404 |
 
 ## Post-deploy smoke test
 ```bash
